@@ -42,9 +42,7 @@ def gpu_decorator(func):
 
 from webui.utils_infer import (
     load_vocoder,
-    preprocess_ref_audio_text,
-    infer_process,
-    remove_silence_for_generated_wav
+    simple_infer
 )
 
 
@@ -116,35 +114,21 @@ def infer(
         gr.Warning("Please enter text to generate.")
         return gr.update(), gr.update(), ref_text
 
-    ref_audio, ref_text = preprocess_ref_audio_text(ref_audio_orig, ref_text, show_info=show_info)
-
     if model != "F5-TTS":
         gr.Warning("Please select F5-TTS, Only Support F5-TTS")
         return gr.update(), gr.update(), ref_text
 
-    output = os.path.join(INFER_OUTPUT_PATH, "result.wav")
-    fake_spectrogram_path = os.path.join(INFER_OUTPUT_PATH, "fake_spec.jpg")
-    # TODO: get real sepctrogram
-    if not os.path.exists(fake_spectrogram_path):
-        with open(fake_spectrogram_path, 'w') as file:
-            file.write("fake spectrogram created.")
-    f5_tts_generate.generate(
-        generation_text = gen_text,
-        ref_audio_path = ref_audio,
-        ref_audio_text = ref_text,
-        output_path = output
+    return simple_infer(
+        ref_audio_orig,
+        ref_text,
+        gen_text,
+        model,
+        remove_silence,
+        cross_fade_duration,
+        nfe_step,
+        speed,
+        gr.Info,
     )
-    final_wave, _ = torchaudio.load(output)
-    final_wave = final_wave.squeeze().cpu().numpy()
-
-    # Remove silence
-    if remove_silence:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-            sf.write(f.name, final_wave, FS_TTS_MLX_DEFAUTL_SAMPLE_RATE)
-            remove_silence_for_generated_wav(f.name)
-            final_wave, _ = torchaudio.load(f.name)
-        final_wave = final_wave.squeeze().cpu().numpy()
-    return (FS_TTS_MLX_DEFAUTL_SAMPLE_RATE, final_wave), fake_spectrogram_path, ref_text
 
 with gr.Blocks() as app_tts:
     gr.Markdown("# Batched TTS")

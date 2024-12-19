@@ -18,6 +18,16 @@ from pydub import AudioSegment, silence
 from vocos import Vocos
 from transformers import pipeline
 
+import soundfile as sf
+import f5_tts_mlx.generate as f5_tts_generate
+import os
+CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+INFER_OUTPUT_PATH = f"{CUR_DIR}/../output"
+DEFAULT_REFEF_AUDIO = f"{CUR_DIR}/../assets/ref.wav"
+if not os.path.exists(INFER_OUTPUT_PATH):
+    os.makedirs(INFER_OUTPUT_PATH)
+    print(f"'{INFER_OUTPUT_PATH}' created")
+
 from webui.utils import (
     get_tokenizer,
     convert_char_to_pinyin,
@@ -79,6 +89,45 @@ def chunk_text(text, max_chars=135):
 
     return chunks
 
+def simple_infer(
+    ref_audio_orig,
+    ref_text,
+    gen_text,
+    model,
+    remove_silence,
+    cross_fade_duration=0.15,
+    nfe_step=32,
+    speed=1,
+    show_info=print,
+):
+    if not ref_audio_orig:
+        ref_audio_orig = DEFAULT_REFEF_AUDIO
+
+    ref_audio, ref_text = preprocess_ref_audio_text(ref_audio_orig, ref_text, show_info=show_info)
+
+    output = os.path.join(INFER_OUTPUT_PATH, "result.wav")
+    fake_spectrogram_path = os.path.join(INFER_OUTPUT_PATH, "fake_spec.jpg")
+    # TODO: get real sepctrogram
+    if not os.path.exists(fake_spectrogram_path):
+        with open(fake_spectrogram_path, 'w') as file:
+            file.write("fake spectrogram created.")
+    f5_tts_generate.generate(
+        generation_text = gen_text,
+        ref_audio_path = ref_audio,
+        ref_audio_text = ref_text,
+        output_path = output
+    )
+    final_wave, _ = torchaudio.load(output)
+    final_wave = final_wave.squeeze().cpu().numpy()
+
+    # Remove silence
+    if remove_silence:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+            sf.write(f.name, final_wave, target_sample_rate)
+            remove_silence_for_generated_wav(f.name)
+            final_wave, _ = torchaudio.load(f.name)
+        final_wave = final_wave.squeeze().cpu().numpy()
+    return (target_sample_rate, final_wave), fake_spectrogram_path, ref_text
 
 # load vocoder
 def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=device, hf_cache_dir=None):
