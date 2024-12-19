@@ -324,7 +324,7 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
         audio_data = audio_file.read()
         audio_hash = hashlib.md5(audio_data).hexdigest()
 
-    if not ref_text.strip():
+    if not ref_text or not ref_text.strip():
         global _ref_audio_cache
         if audio_hash in _ref_audio_cache:
             # Use cached asr transcription
