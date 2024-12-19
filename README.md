@@ -6,3 +6,5 @@ a simplied webui for f5-tts-mlx, which is dedicated for MacOS devices with Apple
 You may need to wait for a while, it will download the model and the tokenizer.
 # Thanks
 Thanks f5-tts-mlx, f5-tts for the great work.
+# UI
+![UI](./tts-webui.png)
