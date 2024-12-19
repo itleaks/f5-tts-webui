@@ -1,0 +1,4 @@
+f5-tts-mlx
+gradio
+transformers
+vocos
